@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sari-Sari Store Management System</title>
+  <style>
+    :root { --ink:#111; --muted:#666; --line:#ddd; --paper:#fff; --soft:#f4f4f4; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial,Helvetica,sans-serif; background:#eee; color:var(--ink); }
+    header { background:#111; color:#fff; padding:22px 16px; }
+    .wrap { max-width:1100px; margin:auto; padding:0 14px; }
+    header h1 { margin:0 0 6px; font-size:clamp(22px,4vw,32px); }
+    header p { margin:0; color:#ccc; }
+    main { padding:20px 0 40px; }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+    .stat, .panel { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; }
+    .stat span { color:var(--muted); font-size:13px; }
+    .stat strong { display:block; font-size:24px; margin-top:7px; }
+    .layout { display:grid; grid-template-columns:1.1fr .9fr; gap:16px; align-items:start; }
+    .panel { margin-bottom:16px; }
+    h2 { margin:0 0 14px; font-size:19px; }
+    label { display:block; font-size:13px; font-weight:bold; margin:10px 0 5px; }
+    input { width:100%; padding:11px; border:1px solid #bbb; border-radius:7px; font-size:16px; background:#fff; color:#111; }
+    button { border:0; border-radius:7px; padding:11px 14px; background:#111; color:#fff; font-weight:bold; cursor:pointer; }
+    button.secondary { background:#e8e8e8; color:#111; }
+    button.danger { background:#555; }
+    button:disabled { opacity:.4; cursor:not-allowed; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .full { width:100%; margin-top:12px; }
+    .product-list { display:grid; gap:9px; }
+    .product { display:flex; justify-content:space-between; gap:12px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:11px; }
+    .product small { display:block; color:var(--muted); margin-top:4px; }
+    .product button { padding:8px 10px; white-space:nowrap; }
+    .cart-row { display:flex; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
+    .cart-row small { color:var(--muted); display:block; margin-top:3px; }
+    .total { display:flex; justify-content:space-between; font-size:20px; font-weight:bold; padding:14px 0; }
+    .empty { color:var(--muted); text-align:center; padding:18px 4px; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); }
+    th { background:#f4f4f4; }
+    .note { color:var(--muted); font-size:12px; line-height:1.5; }
+    .section-head { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    @media(max-width:720px) { .layout { grid-template-columns:1fr; } .stats { grid-template-columns:1fr; } .stat { padding:12px; } .stat strong { font-size:21px; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Sari-Sari Store Management System</h1>
+    <p>Simple product, inventory, and sales tracker</p>
+  </div>
+</header>
+<main class="wrap">
+  <section class="stats">
+    <div class="stat"><span>Products</span><strong id="productCount">0</strong></div>
+    <div class="stat"><span>Items in stock</span><strong id="stockCount">0</strong></div>
+    <div class="stat"><span>Total sales</span><strong id="salesTotal">₱0.00</strong></div>
+  </section>
+
+  <div class="layout">
+    <div>
+      <section class="panel">
+        <h2>Add a Product</h2>
+        <form id="productForm">
+          <label for="productName">Product name</label>
+          <input id="productName" placeholder="Example: Bottled Water" required maxlength="50">
+          <div class="form-row">
+            <div><label for="productPrice">Price (₱)</label><input id="productPrice" type="number" min="0.01" step="0.01" placeholder="15" required></div>
+            <div><label for="productStock">Starting stock</label><input id="productStock" type="number" min="0" step="1" placeholder="20" required></div>
+          </div>
+          <button class="full" type="submit">Add Product</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="section-head"><h2>Available Products</h2><span class="note">Tap Add to Cart</span></div>
+        <div id="productList" class="product-list"></div>
+      </section>
+    </div>
+
+    <div>
+      <section class="panel">
+        <h2>Customer's Cart</h2>
+        <div id="cartList"></div>
+        <div class="total"><span>Total</span><span id="cartTotal">₱0.00</span></div>
+        <button id="checkoutBtn" class="full" disabled>Complete Sale</button>
+        <button id="clearCartBtn" class="secondary full" type="button">Clear Cart</button>
+      </section>
+      <section class="panel">
+        <h2>Sales History</h2>
+        <div id="salesHistory" class="table-wrap"></div>
+        <p class="note">Sales and products are saved in this browser on this device. Clearing browser data may erase them.</p>
+      </section>
+    </div>
+  </div>
+  <p class="note">Created by Nico Arienda | BSIT-1C</p>
+</main>
+<script>
+  // DATA: Load saved information, or use sample products for the first visit.
+  const starterProducts = [
+    { id: 1, name: "Bottled Water", price: 15, stock: 20 },
+    { id: 2, name: "Instant Noodles", price: 18, stock: 15 },
+    { id: 3, name: "Canned Sardines", price: 25, stock: 12 },
+    { id: 4, name: "Laundry Soap", price: 10, stock: 25 }
+  ];
+  let products = JSON.parse(localStorage.getItem("sariProducts")) || starterProducts;
+  let sales = JSON.parse(localStorage.getItem("sariSales")) || [];
+  let cart = [];
+
+  const peso = amount => "₱" + Number(amount).toFixed(2);
+  const saveData = () => {
+    localStorage.setItem("sariProducts", JSON.stringify(products));
+    localStorage.setItem("sariSales", JSON.stringify(sales));
+  };
+
+  // DISPLAY: Update the dashboard, product list, cart, and sales history.
+  function render() {
+    document.getElementById("productCount").textContent = products.length;
+    document.getElementById("stockCount").textContent = products.reduce((sum, p) => sum + p.stock, 0);
+    document.getElementById("salesTotal").textContent = peso(sales.reduce((sum, sale) => sum + sale.total, 0));
+
+    const productList = document.getElementById("productList");
+    productList.innerHTML = "";
+    if (!products.length) productList.innerHTML = '<p class="empty">No products yet. Add your first product above.</p>';
+    products.forEach(product => {
+      const row = document.createElement("div");
+      row.className = "product";
+      const info = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = product.name;
+      const details = document.createElement("small");
+      details.textContent = peso(product.price) + " • Stock: " + product.stock;
+      info.append(name, details);
+      const add = document.createElement("button");
+      add.textContent = product.stock > 0 ? "Add to Cart" : "Out of Stock";
+      add.disabled = product.stock < 1;
+      add.addEventListener("click", () => addToCart(product.id));
+      row.append(info, add);
+      productList.append(row);
+    });
+
+    const cartList = document.getElementById("cartList");
+    cartList.innerHTML = "";
+    if (!cart.length) cartList.innerHTML = '<p class="empty">Your cart is empty.</p>';
+    cart.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "cart-row";
+      const info = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = item.name;
+      const detail = document.createElement("small");
+      detail.textContent = item.quantity + " × " + peso(item.price);
+      info.append(name, detail);
+      const remove = document.createElement("button");
+      remove.className = "secondary";
+      remove.textContent = "−";
+      remove.setAttribute("aria-label", "Remove one " + item.name);
+      remove.addEventListener("click", () => removeFromCart(item.id));
+      row.append(info, remove);
+      cartList.append(row);
+    });
+    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    document.getElementById("cartTotal").textContent = peso(total);
+    document.getElementById("checkoutBtn").disabled = cart.length === 0;
+
+    const history = document.getElementById("salesHistory");
+    if (!sales.length) {
+      history.innerHTML = '<p class="empty">No completed sales yet.</p>';
+    } else {
+      const table = document.createElement("table");
+      table.innerHTML = "<thead><tr><th>Sale</th><th>Items</th><th>Total</th></tr></thead>";
+      const body = document.createElement("tbody");
+      sales.slice().reverse().forEach(sale => {
+        const tr = document.createElement("tr");
+        [ "#" + sale.id, sale.itemCount, peso(sale.total) ].forEach(value => {
+          const td = document.createElement("td");
+          td.textContent = value;
+          tr.append(td);
+        });
+        body.append(tr);
+      });
+      table.append(body);
+      history.replaceChildren(table);
+    }
+  }
+
+  // LOGIC: Add an item only if enough stock is available.
+  function addToCart(id) {
+    const product = products.find(p => p.id === id);
+    const item = cart.find(i => i.id === id);
+    const quantityInCart = item ? item.quantity : 0;
+    if (quantityInCart >= product.stock) {
+      alert("Not enough stock available.");
+      return;
+    }
+    if (item) item.quantity += 1;
+    else cart.push({ id: product.id, name: product.name, price: product.price, quantity: 1 });
+    render();
+  }
+
+  function removeFromCart(id) {
+    const item = cart.find(i => i.id === id);
+    if (!item) return;
+    item.quantity -= 1;
+    if (item.quantity <= 0) cart = cart.filter(i => i.id !== id);
+    render();
+  }
+
+  // INPUT: Validate and save a new product.
+  document.getElementById("productForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const name = document.getElementById("productName").value.trim();
+    const price = Number(document.getElementById("productPrice").value);
+    const stock = Number(document.getElementById("productStock").value);
+    if (!name || !Number.isFinite(price) || price <= 0 || !Number.isInteger(stock) || stock < 0) {
+      alert("Please enter a product name, a price above zero, and a whole-number stock of zero or more.");
+      return;
+    }
+    products.push({ id: Date.now(), name, price, stock });
+    saveData();
+    event.target.reset();
+    render();
+  });
+
+  // TRANSACTION: Calculate the bill, deduct stock, and record the sale.
+  document.getElementById("checkoutBtn").addEventListener("click", () => {
+    if (!cart.length) return;
+    for (const item of cart) {
+      const product = products.find(p => p.id === item.id);
+      if (!product || product.stock < item.quantity) {
+        alert("Stock changed. Please review your cart.");
+        return;
+      }
+    }
+    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+    products.forEach(product => {
+      const bought = cart.find(item => item.id === product.id);
+      if (bought) product.stock -= bought.quantity;
+    });
+    sales.push({ id: sales.length ? Math.max(...sales.map(s => s.id)) + 1 : 1, total, itemCount, date: new Date().toISOString() });
+    cart = [];
+    saveData();
+    render();
+    alert("Sale completed! Total: " + peso(total));
+  });
+
+  document.getElementById("clearCartBtn").addEventListener("click", () => {
+    cart = [];
+    render();
+  });
+
+  saveData();
+  render();
+</script>
+</body>
+</html>
